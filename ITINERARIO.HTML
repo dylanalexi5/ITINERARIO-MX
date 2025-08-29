@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan de Viaje Interactivo: México 2025</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals (Stone, Amber) with Teal Accent -->
+    <!-- Application Structure Plan: A single-page dashboard structure with a sticky navigation bar for quick access to key sections: a summary dashboard, an interactive budget analysis, a tabbed daily itinerary, and an accordion-style essential guide. This structure was chosen to break down the complex travel information into manageable, interactive components, prioritizing the user's main concerns (budget, daily plan, essential info) and making them easily accessible and digestible on any device. -->
+    <!-- Visualization & Content Choices: Budget -> Goal: Compare/Understand -> Viz: Interactive Doughnut Chart (Chart.js) -> Interaction: Toggle between 'Per Person' and 'Total' views, updating chart and text -> Justification: More engaging and intuitive than a static table. Itinerary -> Goal: Organize daily plan -> Presentation: Tabbed interface -> Interaction: Click to switch days -> Justification: Saves vertical space and reduces cognitive load. Essential Guide -> Goal: Organize tips -> Presentation: Accordion -> Interaction: Click to expand -> Justification: Keeps the section clean and information scannable. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f5f5f4; /* stone-100 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .tab-active {
+            border-color: #0d9488; /* teal-600 */
+            color: #0d9488;
+            background-color: #f0fdfa; /* teal-50 */
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+        }
+        .accordion-button.open + .accordion-content {
+            max-height: 500px;
+        }
+    </style>
+</head>
+<body class="text-stone-800">
+
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-teal-700">✈️ Viaje a México 2025</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#resumen" class="text-stone-600 hover:text-teal-600 px-3 py-2 rounded-md text-sm font-medium">Resumen</a>
+                        <a href="#presupuesto" class="text-stone-600 hover:text-teal-600 px-3 py-2 rounded-md text-sm font-medium">Presupuesto</a>
+                        <a href="#itinerario" class="text-stone-600 hover:text-teal-600 px-3 py-2 rounded-md text-sm font-medium">Itinerario</a>
+                        <a href="#guia" class="text-stone-600 hover:text-teal-600 px-3 py-2 rounded-md text-sm font-medium">Guía Esencial</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <section id="resumen" class="mb-12">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-stone-900">Plan de Viaje Familia Rivera</h2>
+                <p class="mt-2 text-lg text-stone-600">Una aventura de 7 días por Ciudad de México y Cancún.</p>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h3 class="text-xl font-semibold mb-4 text-center">Los Viajeros</h3>
+                <div id="travelers-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 text-center">
+                </div>
+            </div>
+        </section>
+
+        <section id="presupuesto" class="mb-12">
+            <h2 class="text-3xl font-bold text-stone-900 text-center mb-2">Análisis de Presupuesto</h2>
+            <p class="text-center text-stone-600 mb-8">Una vista interactiva de los costos del viaje para una mejor planificación financiera.</p>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <div class="flex justify-center mb-4">
+                    <div class="inline-flex rounded-md shadow-sm" role="group">
+                        <button type="button" id="btn-per-person" class="px-4 py-2 text-sm font-medium text-white bg-teal-600 border border-teal-700 rounded-l-lg hover:bg-teal-700">
+                            Por Persona
+                        </button>
+                        <button type="button" id="btn-total" class="px-4 py-2 text-sm font-medium text-teal-700 bg-white border-t border-b border-r border-teal-700 hover:bg-teal-50 rounded-r-lg">
+                            Total (5 Personas)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                    <div class="chart-container">
+                        <canvas id="budgetChart"></canvas>
+                    </div>
+                    <div>
+                        <h3 id="budget-title" class="text-2xl font-semibold text-center mb-4">Presupuesto por Persona</h3>
+                        <div id="budget-details" class="text-center space-y-2">
+                        </div>
+                        <div class="mt-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+                            <h4 class="font-bold text-amber-800">💡 Consejo de Ahorro</h4>
+                            <p class="text-sm text-amber-700">Alquilar apartamentos para preparar desayunos y cenas es la estrategia más efectiva para cumplir el presupuesto. ¡Aprovéchenla al máximo!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    <!-- Apartado de Presupuesto y Gastos Dinámicos -->
+    <section id="presupuesto">
+        <h2 class="text-2xl font-bold text-teal-700 mb-4 text-center">Presupuesto General por Persona</h2>
+        <form id="form-presupuesto" class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-teal-50 p-6 rounded-xl shadow mb-6">
+            <div>
+                <label class="block font-semibold mb-1">Dinero restante después de vuelos (COP)</label>
+                <input type="number" id="input-restante" min="0" class="w-full p-2 rounded border border-teal-300">
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Dinero a aumentar (COP)</label>
+                <input type="number" id="input-aumentar" min="0" class="w-full p-2 rounded border border-teal-300">
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Total disponible para gastos en destino (COP)</label>
+                <div id="total-disponible-cop" class="w-full p-2 rounded border border-teal-300 bg-gray-100 font-bold"></div>
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Número de días de viaje</label>
+                <input type="number" id="input-dias" min="1" class="w-full p-2 rounded border border-teal-300">
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Promedio diario para gastos (COP)</label>
+                <input type="number" id="input-promedio" min="0" class="w-full p-2 rounded border border-teal-300">
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Colchón para imprevistos (COP)</label>
+                <input type="number" id="input-colchon" min="0" class="w-full p-2 rounded border border-teal-300">
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Tasa de cambio COP/MXN</label>
+                <input type="number" id="input-cambio" min="1" class="w-full p-2 rounded border border-teal-300">
+            </div>
+            <div class="flex items-end">
+                <button type="button" onclick="actualizarPresupuesto()" class="bg-teal-600 text-white px-4 py-2 rounded shadow hover:bg-teal-700 w-full">Actualizar presupuesto</button>
+            </div>
+        </form>
+        <div id="resumen-presupuesto" class="bg-white rounded-xl shadow p-4 mb-6"></div>
+        <h3>Informe Detallado de Gastos Diarios (por persona)</h3>
+        <div id="desglose-gastos"></div>
+        <div id="totales-gastos"></div>
+        <canvas id="grafico-gastos" width="600" height="300"></canvas>
+        <h3>Mapa Interactivo (Offline y Rutas)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h4 class="font-bold text-teal-700 mb-2">Mapa Offline (OpenStreetMap)</h4>
+                <div id="mapa" style="height: 400px;"></div>
+            </div>
+            <div>
+                <h4 class="font-bold text-teal-700 mb-2">Mapa de Rutas (Google Maps)</h4>
+                <div id="rutas" class="mb-2">
+                    <label class="block mb-1">Origen: <input type="text" id="origen" placeholder="Ej: Ciudad de México" class="w-full p-2 rounded border border-teal-300"></label>
+                    <label class="block mb-1">Destino: <input type="text" id="destino" placeholder="Ej: Cancún" class="w-full p-2 rounded border border-teal-300"></label>
+                    <button type="button" onclick="mostrarRuta()" class="bg-amber-500 text-white px-4 py-2 rounded shadow hover:bg-amber-600 w-full mt-2">Mostrar Ruta</button>
+                    <div id="info-ruta" class="mt-2"></div>
+                    <iframe id="iframe-mapa" style="width:100%;height:300px;display:none;border:none;"></iframe>
+                </div>
+                <div class="text-xs text-stone-500">Si Google Maps bloquea la conexión, abre la ruta en una nueva pestaña usando el enlace generado.</div>
+            </div>
+        </div>
+    </section>
+    <link rel="stylesheet" href="presupuesto.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="presupuesto.js"></script>
+        
+        <section id="itinerario" class="mb-12">
+            <h2 class="text-3xl font-bold text-stone-900 text-center mb-2">Itinerario Detallado</h2>
+            <p class="text-center text-stone-600 mb-8">Navega por cada día de la aventura. Haz clic en una pestaña para ver los detalles.</p>
+
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="border-b border-stone-200 mb-4">
+                    <nav id="itinerary-tabs" class="-mb-px flex space-x-2 sm:space-x-4 overflow-x-auto" aria-label="Tabs">
+                    </nav>
+                </div>
+                <div id="itinerary-content">
+                </div>
+            </div>
+        </section>
+
+        <section id="guia">
+            <h2 class="text-3xl font-bold text-stone-900 text-center mb-2">Guía Esencial del Viajero</h2>
+            <p class="text-center text-stone-600 mb-8">Todo lo que necesitan saber para su primer viaje internacional, desde documentos hasta seguridad.</p>
+            
+            <div id="accordion-container" class="space-y-3">
+            </div>
+        </section>
+
+    </main>
+</body>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const travelData = {
+            travelers: [
+                { name: 'Dylan', age: 24, role: 'Hijo', emoji: '🧑🏻‍💻' },
+                { name: 'Mafe', age: 24, role: 'Novia', emoji: '🥰' },
+                { name: 'Jardiel', age: 52, role: 'Papá', emoji: '👨🏻' },
+                { name: 'Zulma', age: 45, role: 'Mamá', emoji: '👩🏻' },
+                { name: 'Krystal', age: 14, role: 'Hermana', emoji: '👧🏻' },
+            ],
+            budget: {
+                perPerson: {
+                    flights: 1851089,
+                    lodgingCdmx: 104720,
+                    lodgingCancun: 120000,
+                    spendingMoney: 624191,
+                    total: 2700000,
+                },
+                exchangeRate: 0.0046, 
+            },
+            itinerary: [
+                { day: 1, date: 'Jue, 25 Sep', location: 'CDMX', title: 'Llegada y Acomodación', icon: '🛬', details: 'Llegada nocturna al AICM. Traslado seguro al apartamento y descanso para iniciar la aventura.', transport: 'UberXL o DiDi (Vehículo grande para 5 personas y equipaje).', tip: 'Tener la dirección del apartamento a mano y confirmar el costo del viaje en la app antes de subir.' },
+                { day: 2, date: 'Vie, 26 Sep', location: 'CDMX', title: 'Pirámides de Teotihuacán', icon: '🏛️', details: 'Día completo dedicado a explorar la majestuosa zona arqueológica. Visita a la Pirámide del Sol y la Luna.', transport: 'Tour organizado o bus desde la Terminal del Norte.', tip: 'Llevar calzado cómodo, protector solar, sombrero y mucha agua. ¡La caminata es larga!' },
+                { day: 3, date: 'Sáb, 27 Sep', location: 'CDMX a Cancún', title: 'Corazón de la Ciudad y Vuelo', icon: '✈️', details: 'Mañana explorando el Centro Histórico (Zócalo, Bellas Artes). Por la tarde, vuelo a Cancún.', transport: 'Metro para el centro. UberXL para el traslado al aeropuerto.', tip: 'Salir hacia el aeropuerto con al menos 3 horas de antelación para el vuelo a Cancún.' },
+                { day: 4, date: 'Dom, 28 Sep', location: 'Cancún', title: 'Chichén Itzá y Cenote', icon: '🌊', details: 'Excursión de día completo a una de las Nuevas Siete Maravillas del Mundo y refrescarse en un cenote sagrado.', transport: 'Tour organizado es la opción más cómoda y económica.', tip: 'La entrada a Coco Bongo es costosa y no apta para menores. Consideren un paseo nocturno por la Zona Hotelera como alternativa familiar.' },
+                { day: 5, date: 'Lun, 29 Sep', location: 'Cancún', title: 'Día de Playa y Relax', icon: '🏖️', details: 'Disfrutar de las playas de arena blanca y aguas turquesas de Cancún. Playa Delfines es una excelente opción pública.', transport: 'Autobuses R1 o R2 en la Zona Hotelera.', tip: 'Para comer económico y auténtico, exploren los restaurantes del centro de Cancún, lejos de la zona turística.' },
+                { day: 6, date: 'Mar, 30 Sep', location: 'Cancún', title: 'Compras y Preparativos', icon: '🛍️', details: 'Día para comprar souvenirs en el Mercado 28, disfrutar de una última comida mexicana y preparar el equipaje.', transport: 'Autobús local o taxi.', tip: 'Regatear es común en los mercados de artesanías, siempre con respeto.' },
+                { day: 7, date: 'Mié, 01 Oct', location: 'Cancún a Casa', title: 'Regreso y Escala en Panamá', icon: '🇵🇦', details: 'Vuelo de regreso a Colombia con una escala de 7 horas en Panamá, ideal para una visita rápida al Canal de Panamá (Esclusas de Miraflores).', transport: 'Taxi o Uber desde el aeropuerto de Tocumen.', tip: 'No es necesario cambiar a moneda local en Panamá, el dólar estadounidense es de curso legal.' },
+            ],
+            essentialGuide: [
+                { title: '📄 Documentación Crucial', content: 'Todos deben llevar su pasaporte con vigencia mínima de 6 meses. Guarden bien el Formulario Migratorio Múltiple (FMM) que reciben al entrar a México, lo necesitarán para salir. Se recomienda hacer el Check-Mig de Colombia para agilizar la salida y el reingreso.' },
+                { title: '💵 Dinero, Moneda y Propinas', content: 'La moneda es el Peso Mexicano (MXN). Es mejor cambiar una pequeña cantidad en el aeropuerto y luego retirar de cajeros automáticos (ATMs) de bancos reconocidos para obtener una mejor tasa. La propina en restaurantes es del 10-15% y es muy apreciada.' },
+                { title: '🛡️ Seguridad y Conducta', content: 'Eviten mostrar objetos de valor como joyas o cámaras costosas. Usen taxis de sitio o apps como Uber/DiDi en lugar de taxis de la calle. Beban siempre agua embotellada. Sean precavidos en zonas concurridas y no caminen por lugares poco iluminados de noche.' },
+                { title: '🚗 Transporte: ¿Alquilar Auto?', content: '**CDMX:** No se recomienda. El tráfico es intenso, el estacionamiento es escaso y caro. La combinación de Metro/Metrobús y Uber/DiDi es mucho más eficiente y económica. **Cancún:** Es una opción viable, pero un tour organizado para Chichén Itzá y el uso de buses locales para la playa es más económico y se ajusta mejor a su presupuesto.' },
+                { title: '📱 Comunicación y Conectividad', content: 'Consideren comprar una tarjeta SIM local (prepago) al llegar. Telcel tiene la mejor cobertura. Se pueden comprar en tiendas OXXO. Esto les dará datos para mapas, Uber y comunicación a un costo mucho menor que el roaming.' },
+            ]
+        };
+
+        const formatCurrency = (amount, currency = 'COP') => {
+            return new Intl.NumberFormat('es-CO', { style: 'currency', currency: currency, minimumFractionDigits: 0 }).format(amount);
+        };
+
+        const travelersContainer = document.getElementById('travelers-container');
+        travelData.travelers.forEach(t => {
+            travelersContainer.innerHTML += `
+                <div class="flex flex-col items-center p-2">
+                    <div class="text-4xl mb-1">${t.emoji}</div>
+                    <p class="font-semibold">${t.name}</p>
+                    <p class="text-sm text-stone-500">${t.role}, ${t.age} años</p>
+                </div>
+            `;
+        });
+
+        const ctx = document.getElementById('budgetChart').getContext('2d');
+        let budgetChart;
+
+        const budgetData = {
+            labels: ['Vuelos', 'Alojamiento CDMX', 'Alojamiento Cancún', 'Gastos en Destino'],
+            datasets: [{
+                label: 'Presupuesto',
+                data: [],
+                backgroundColor: [
+                    '#f59e0b', // amber-500
+                    '#14b8a6', // teal-500
+                    '#0d9488', // teal-600
+                    '#a8a29e', // stone-400
+                ],
+                borderColor: '#f5f5f4',
+                borderWidth: 4,
+                hoverOffset: 8
+            }]
+        };
+
+        function createOrUpdateChart(data) {
+            if (budgetChart) {
+                budgetChart.data.datasets[0].data = data;
+                budgetChart.update();
+            } else {
+                budgetChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { ...budgetData, datasets: [{ ...budgetData.datasets[0], data: data }] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    boxWidth: 12,
+                                    font: {
+                                        size: 12
+                                    }
+                                }
+                            },
+                        },
+                        cutout: '60%'
+                    }
+                });
+            }
+        }
+
+        function updateBudgetView(type = 'person') {
+            const budgetDetailsContainer = document.getElementById('budget-details');
+            const budgetTitle = document.getElementById('budget-title');
+            const btnPerson = document.getElementById('btn-per-person');
+            const btnTotal = document.getElementById('btn-total');
+
+            const p = travelData.budget.perPerson;
+            const multiplier = type === 'person' ? 1 : travelData.travelers.length;
+            
+            const data = [p.flights, p.lodgingCdmx, p.lodgingCancun, p.spendingMoney].map(cost => cost * multiplier);
+            createOrUpdateChart(data);
+
+            const totalBudget = p.total * multiplier;
+            const remaining = p.spendingMoney * multiplier;
+            const remainingMXN = remaining * travelData.budget.exchangeRate;
+
+            budgetTitle.textContent = type === 'person' ? 'Presupuesto por Persona' : 'Presupuesto Total (5 Personas)';
+            budgetDetailsContainer.innerHTML = `
+                <p class="text-stone-600">Presupuesto Total: <span class="font-bold text-black">${formatCurrency(totalBudget)}</span></p>
+                <p class="text-stone-600">Costos Fijos (Vuelos y Alojamiento): <span class="font-bold text-black">${formatCurrency(totalBudget - remaining)}</span></p>
+                <div class="my-4 py-3 bg-teal-50 rounded-lg">
+                  <p class="text-lg text-teal-800">Disponible para Gastos:</p>
+                  <p class="text-3xl font-bold text-teal-700">${formatCurrency(remaining)}</p>
+                  <p class="text-md text-teal-600">aprox. ${formatCurrency(remainingMXN, 'MXN')}</p>
+                </div>
+            `;
+
+            if (type === 'person') {
+                btnPerson.classList.add('bg-teal-600', 'text-white');
+                btnPerson.classList.remove('bg-white', 'text-teal-700');
+                btnTotal.classList.add('bg-white', 'text-teal-700');
+                btnTotal.classList.remove('bg-teal-600', 'text-white');
+            } else {
+                btnTotal.classList.add('bg-teal-600', 'text-white');
+                btnTotal.classList.remove('bg-white', 'text-teal-700');
+                btnPerson.classList.add('bg-white', 'text-teal-700');
+                btnPerson.classList.remove('bg-teal-600', 'text-white');
+            }
+        }
+
+        document.getElementById('btn-per-person').addEventListener('click', () => updateBudgetView('person'));
+        document.getElementById('btn-total').addEventListener('click', () => updateBudgetView('total'));
+
+        updateBudgetView('person');
+
+        const itineraryTabsContainer = document.getElementById('itinerary-tabs');
+        const itineraryContentContainer = document.getElementById('itinerary-content');
+        travelData.itinerary.forEach((item, index) => {
+            const isActive = index === 0;
+            itineraryTabsContainer.innerHTML += `
+                <button class="itinerary-tab whitespace-nowrap py-3 px-2 sm:px-4 border-b-2 font-medium text-sm ${isActive ? 'tab-active' : 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300'}" data-day="${item.day}">
+                    Día ${item.day} <span class="hidden sm:inline">- ${item.date}</span>
+                </button>
+            `;
+            itineraryContentContainer.innerHTML += `
+                <div class="itinerary-panel p-4 ${isActive ? '' : 'hidden'}" id="day-${item.day}">
+                    <div class="flex items-start space-x-4">
+                        <div class="text-4xl">${item.icon}</div>
+                        <div>
+                            <p class="text-sm font-semibold text-teal-600">${item.date} - ${item.location}</p>
+                            <h3 class="text-xl font-bold">${item.title}</h3>
+                            <p class="mt-1 text-stone-600">${item.details}</p>
+                            <div class="mt-4 space-y-2">
+                                <p class="text-sm"><span class="font-semibold">🚗 Transporte Clave:</span> ${item.transport}</p>
+                                <p class="text-sm"><span class="font-semibold">💡 Tip del Día:</span> ${item.tip}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        const tabs = document.querySelectorAll('.itinerary-tab');
+        const panels = document.querySelectorAll('.itinerary-panel');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => {
+                    t.classList.remove('tab-active');
+                    t.classList.add('border-transparent', 'text-stone-500', 'hover:text-stone-700', 'hover:border-stone-300');
+                });
+                tab.classList.add('tab-active');
+                tab.classList.remove('border-transparent', 'text-stone-500', 'hover:text-stone-700', 'hover:border-stone-300');
+
+                const targetDay = tab.getAttribute('data-day');
+                panels.forEach(panel => {
+                    if (panel.id === `day-${targetDay}`) {
+                        panel.classList.remove('hidden');
+                    } else {
+                        panel.classList.add('hidden');
+                    }
+                });
+            });
+        });
+
+        const accordionContainer = document.getElementById('accordion-container');
+        // Nueva información ampliada y creativa para cada sección
+        const guideSections = [
+            {
+                title: '📄 Documentación Crucial',
+                content: `
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><span class="font-bold">Pasaportes:</span> Todos los miembros de la familia deben tener su pasaporte vigente con una validez mínima de <span class="text-teal-700">6 meses</span> a partir de la fecha de entrada a México.</li>
+                        <li><span class="font-bold">Formulario Migratorio Múltiple (FMM):</span> Se te entregará al llegar a México. <span class="bg-amber-100 px-1 rounded">Guárdalo en un lugar seguro</span> ya que lo necesitarás para salir del país.</li>
+                        <li><span class="font-bold">Check-Mig:</span> Realiza este pre-registro migratorio de Colombia antes de viajar. <span class="text-amber-700">Te permitirá usar las filas rápidas</span> y agilizar tu salida y reingreso al país.</li>
+                        <li><span class="font-bold">Pruebas de Viaje:</span> Lleva impresas o en tu celular las <span class="text-teal-700">reservas de hotel y los tiquetes de regreso</span>, ya que las autoridades mexicanas podrían solicitarlas para comprobar tu itinerario y que planeas salir del país.</li>
+                    </ul>
+                `
+            },
+            {
+                title: '💵 Dinero, Moneda y Propinas',
+                content: `
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><span class="font-bold">Moneda oficial:</span> Peso Mexicano (<span class="text-teal-700">MXN</span>).</li>
+                        <li><span class="font-bold">Cambio de moneda:</span> <span class="bg-amber-100 px-1 rounded">Evita cambiar grandes sumas en el aeropuerto</span>. Retira dinero de cajeros automáticos (ATM) de bancos reconocidos para obtener la mejor tasa.</li>
+                        <li><span class="font-bold">Presupuesto Diario:</span> <span class="text-teal-700">$624.191 COP</span> por persona para gastos en destino. Total para 5 personas: <span class="text-teal-700">$3.120.955 COP</span>.</li>
+                        <li><span class="font-bold">Conversión a MXN:</span> Con la tasa actual (<span class="text-amber-700">$1 COP = $0.0046 MXN</span>), tienes <span class="font-bold">$2.871 MXN</span> por persona para los 7 días (<span class="font-bold">$410 MXN</span> por persona por día).</li>
+                        <li><span class="font-bold">Propinas:</span> En restaurantes, deja entre <span class="text-amber-700">10% y 15%</span> del total. Para taxis, no es obligatorio, pero se suele redondear la tarifa si el servicio fue bueno.</li>
+                    </ul>
+                    <div class="mt-4 p-3 bg-teal-50 rounded-lg">
+                        <span class="font-bold text-teal-700">Gastos por día (Resumen):</span>
+                        <ul class="list-disc pl-5 text-sm mt-2">
+                            <li>Alimentación: Desayuno y cena en el apartamento, comida callejera al mediodía.</li>
+                            <li>Transporte local: Metro/Metrobús en CDMX, autobuses R1/R2 en Cancún.</li>
+                            <li>Entradas: Pirámides de Teotihuacán, Chichén Itzá y cenotes.</li>
+                        </ul>
+                    </div>
+                `
+            },
+            {
+                title: '🛡️ Seguridad y Conducta',
+                content: `
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><span class="font-bold">Prevención:</span> En áreas turísticas concurridas, mantén tus pertenencias a la vista y asegura tus bolsos.</li>
+                        <li><span class="font-bold">Transporte:</span> Usa taxis de sitio o apps como <span class="text-teal-700">Uber/DiDi</span>, especialmente de noche.</li>
+                        <li><span class="font-bold">Comida y agua:</span> Consume <span class="bg-amber-100 px-1 rounded">agua embotellada</span> y evita alimentos callejeros que no se vean higiénicos.</li>
+                    </ul>
+                `
+            },
+            {
+                title: '🚗 Transporte: ¿Alquilar Auto?',
+                content: `
+                    <div class="mb-2"><span class="font-bold">No recomendado</span> ni en CDMX ni en Cancún por presupuesto y logística.</div>
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><span class="font-bold">CDMX:</span> Tráfico denso y caótico, estacionamiento escaso y caro. Metro/Metrobús y Uber/DiDi son más eficientes y económicos. Para Teotihuacán, mejor tour organizado o bus desde la Terminal del Norte.</li>
+                        <li><span class="font-bold">Cancún:</span> Para Chichén Itzá y cenotes, el tour organizado es más conveniente y económico. Para playas, los autobuses R1 y R2 son eficientes y baratos.</li>
+                    </ul>
+                `
+            },
+            {
+                title: '📱 Comunicación y Conectividad',
+                content: `
+                    <ul class="list-disc pl-5 space-y-2">
+                        <li><span class="font-bold">Tarjeta SIM local:</span> Compra una SIM prepago al llegar. <span class="text-teal-700">Telcel</span> tiene la mejor cobertura. Disponible en OXXO, farmacias y aeropuerto.</li>
+                        <li><span class="font-bold">Beneficios:</span> Podrás usar <span class="text-teal-700">Google Maps</span>, pedir taxis por app y mantenerte en contacto con tu familia. El costo es bajo y te dará tranquilidad.</li>
+                    </ul>
+                `
+            }
+        ];
+
+        guideSections.forEach((item, index) => {
+            accordionContainer.innerHTML += `
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <h2>
+                        <button type="button" class="accordion-button flex items-center justify-between w-full p-5 font-medium text-left text-stone-800 hover:bg-stone-50" data-accordion-target="accordion-body-${index}">
+                            <span>${item.title}</span>
+                            <span class="transform transition-transform duration-200">&#9662;</span>
+                        </button>
+                    </h2>
+                    <div id="accordion-body-${index}" class="accordion-content">
+                        <div class="p-5 border-t border-stone-200 text-stone-600">
+                            ${item.content}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        const accordionButtons = document.querySelectorAll('.accordion-button');
+        accordionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                button.classList.toggle('open');
+                const icon = button.querySelector('span:last-child');
+                icon.style.transform = button.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+                // Mostrar/ocultar contenido
+                const targetId = button.getAttribute('data-accordion-target');
+                const content = document.getElementById(targetId);
+                if (content) {
+                    if (button.classList.contains('open')) {
+                        content.style.maxHeight = '500px';
+                    } else {
+                        content.style.maxHeight = '0';
+                    }
+                }
+            });
+        });
+    });
+</script>
+</html>
